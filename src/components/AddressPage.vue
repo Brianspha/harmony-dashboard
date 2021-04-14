@@ -331,6 +331,21 @@
                     Shard {{ index }} : {{ shard.stakingTxCount | number }}
                   </td>
                 </tr>
+                <tr>
+                  <td class="td-title">
+                    Download Transactions
+                  </td>
+                  <td>
+                    <div style="max-width: 500px">
+                      <Button
+                        v-if="!tokensFetching"
+                        style="outline:0;border-radius:4px;cursor: pointer; border: none;background: #00aee9;padding:10px;color:white;"
+                        @click="$store.zip(showWhich == 'hrc721'?'HRC721':'HRC720',$route.params.address)">
+                        Download 
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               </table>
             </section>
           </div>
@@ -482,10 +497,20 @@
         <loading-message v-if="false" />
       </div>
     </div>
+        <loading :active.sync="$store.data.isCreatingZip" 
+        :is-full-page="fullPage"
+        color="#0a93eb"
+        :width="loadingWidth"
+        :height="loadingHeight"
+        ></loading>
   </div>
 </template>
 
 <script>
+// Import component
+import Loading from 'vue-loading-overlay'
+// Import stylesheet
+import 'vue-loading-overlay/dist/vue-loading.css'
 import service from '../explorer/service'
 import LoadingMessage from './LoadingMessage'
 import TransactionsTable from './TransactionsTable'
@@ -509,6 +534,7 @@ const defaultStatus = 'regular'
 export default {
   name: 'AddressPage',
   components: {
+    Loading,
     LoadingMessage,
     TransactionsTable,
     StakingTransactionsTable,
@@ -523,6 +549,10 @@ export default {
   },
   data() {
     return {
+      loadingWidth: 128,
+      loadingHeight: 128,
+      fullPage: true,
+      tokensFetching: false,
       allBalance: false,
       allTxsCount: false,
       allStakingCount: false,

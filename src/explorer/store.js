@@ -1,6 +1,12 @@
 import Vue from 'vue'
 import hmy from './hmy.js'
 import axios from 'axios'
+import { ExportToCsv } from 'export-to-csv'
+import JSZip from 'jszip'
+const { Parser } = require('json2csv')
+import { saveAs } from 'file-saver'
+import swal from 'sweetalert2'
+
 import {
   BASE_HRC20URL,
   HRC20_HOLDERURL,
@@ -12,7 +18,19 @@ import service from './service'
 window.hmy = hmy
 const HRC20_ABI = require('./HRC20_ABI.json')
 const HRC721_ABI = require('./hrc721ABI.json')
-
+const options = {
+  //@dev options for creating a CSV file
+  fieldSeparator: ',',
+  quoteStrings: '"',
+  decimalSeparator: '.',
+  showLabels: true,
+  showTitle: true,
+  title: 'Transactions',
+  useTextFile: false,
+  useBom: true,
+  useKeysAsHeaders: true,
+  // headers: ['Column 1', 'Column 2', etc...] <-- Won't work with useKeysAsHeaders present!
+}
 const HRC20_LIST = []
 
 const Limit = 10
@@ -79,6 +97,9 @@ HRC20_LIST.map(hrc20 => (Hrc20Address[hrc20.address] = hrc20))
 
 let store = {
   data: {
+    hrc721Headers: ['#', 'Token', 'Symbol', 'Address', 'Total Supply'],
+    hrc721Data: [],
+    hrc720Data: [],
     displayAddressETH: false,
     shards: {},
     shardsValidators: [],
@@ -101,9 +122,79 @@ let store = {
     hmy,
     HRC20_HOLDERURL,
     ONE_HOLDERURL,
+    isCreatingZip: false,
+    showError: false,
+  },
+  showError(message) {
+    swal.fire({
+      title: 'Transaction Data',
+      text: message,
+      icon: 'error',
+      confirmButtonText: 'Close',
+    })
+  },
+  zip(transactionTypes, address) {
+    console.log('zipping transaction type: ', transactionTypes)
+    store.data.isCreatingZip = true
+
+    try {
+      var data =
+        transactionTypes === 'HRC20' ? store.data.hrc20Txs : store.data.hrc721
+      data = data.filter(transaction => {
+        console.log(
+          'transaction.authorAddress === address: ',
+          transaction.authorAddress === address
+        )
+        return transaction.authorAddress === address
+      })
+      if (data.length === 0) {
+        store.data.isCreatingZip = false
+        store.showError('No transaction data found for this address!')
+        return
+      }
+      var headings = Object.keys(data[0])
+      console.log('headings: ', headings)
+      const parser = new Parser({
+        fields: headings,
+      })
+      console.log('filtered for user transactions: ', data)
+      const csv = parser.parse(data)
+      store.downloadCSV(csv, transactionTypes)
+      console.log('csv file: ', csv)
+    } catch (err) {
+      console.error(err)
+    }
+  },
+  downloadCSV(data, transactionTypes) {
+    var currentdate = new Date()
+    var zip = new JSZip()
+    var date =
+      currentdate.getDate() +
+      '/' +
+      (currentdate.getMonth() + 1) +
+      '/' +
+      currentdate.getFullYear() +
+      ' @ ' +
+      currentdate.getHours() +
+      ':' +
+      currentdate.getMinutes() +
+      ':' +
+      currentdate.getSeconds()
+    zip.file(date + '.csv', data)
+
+    zip.generateAsync({ type: 'uint8array' }).then(function(content) {
+      // see FileSaver.js
+      console.log('results: ', content)
+      saveAs(
+        new Blob([content], { type: 'application/zip' }),
+        transactionTypes + '.zip'
+      )
+      store.data.isCreatingZip = false
+    })
   },
   changeDisplayAddressETH(val) {
-    this.data.displayAddressETH = val!==undefined ? val: !this.displayAddressETH
+    this.data.displayAddressETH =
+      val !== undefined ? val : !this.displayAddressETH
     return this.data.displayAddressETH
   },
   update(data) {
@@ -112,8 +203,13 @@ let store = {
   },
   async updateValidtors() {
     for (let i = 0; i < 4; i++) {
+      console.log('index in updateValidators: ', i)
       let shardi = await hmy.hmySDK.blockchain.Staking.getValidators(i)
-      this.data.shardsValidators.push(shardi.result.validators)
+      console.log('shardi: ', shardi)
+      if (shardi.hasOwnProperty('result')) {
+        //@dev protect against where the response doesnt return any validators
+        this.data.shardsValidators.push(shardi.result.validators)
+      }
     }
   },
   updateHrc20List() {

@@ -7,6 +7,7 @@
             <div class="token-view-header">
               HRC721 Tokens
             </div>
+            
             <div class="row-select-container">
               Show
               <select v-model="pageSize" class="row-select">
@@ -70,11 +71,8 @@
           <div class="explorer-card-body">
             <table v-if="filteredTokens.length" class="explorer-table">
               <tr>
-                <th>#</th>
-                <th>Token</th>
-                <th>Symbol</th>
-                <th>Address</th>
-                <th>Total Supply</th>
+                <th v-for="(heading,index) in $store.data.hrc721Headers" :key="index">{{heading}}</th>
+         
               </tr>
               <tr v-for="(token, index) in tokens" :key="index">
                 <td>
@@ -167,6 +165,8 @@ export default {
     this.loading = true
     const { data: tokens } = await axios.get(HRC721LIST_URL)
     this.tokenList = _.uniqBy(tokens, 'contractAddress')
+    this.$store.data.hrc721Data = tokens
+    console.log('this.$store.data.hrc721Data: ', this.$store.data.hrc721Data)
     this.loading = false
   },
   methods: {
