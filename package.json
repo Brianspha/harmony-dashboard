@@ -44,7 +44,7 @@
     "jszip": "^3.6.0",
     "lodash": "^4.17.20",
     "moment": "^2.23.0",
-    "moment-timezone": "^0.5.27",
+    "moment-timezone": "^0.5.35",
     "numeral": "^2.0.6",
     "promise": "^8.1.0",
     "sweetalert2": "^10.16.2",
